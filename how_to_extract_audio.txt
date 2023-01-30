@@ -1,0 +1,51 @@
+Lots of tools of course out there, but ffmpeg seems to be free and easy https://ffmpeg.org/
+
+To just dump all audio in the current format to a wav file:
+
+ffmpeg.exe -i test_raw.mp4 -map 0:a output.wav
+
+The 'map' option selects all audio streams starting at input index 0 - see https://trac.ffmpeg.org/wiki/Map
+
+To resample at 20kHz, at a bit depth of 8, down to one (mono) channel, then:
+
+ffmpeg.exe -i test_raw.mp4 -map 0:a -ar 20000 -c:a pcm_u8 -ac 1 output20_u8_1.wav
+
+To read the resulting wav file in python, 
+
+from scipy.io import wavfile
+rate,data=wavefile.read('output20_u8_1.wav')
+audio_duration=len(data)/rate
+
+'data' has 1-D numpy array, rate is in Hz. Perfect.
+
+OpenCV can give you the video frame rates and durations:
+
+import cv2
+v=cv2.VideoCapture('test_raw.mp4')
+frame_rate=v.get(cv2.CAP_PROP_FPS)
+frame_count=v.get(cv2.CAP_PROP_FRAME_COUNT)
+
+video_duration=frame_count/frame_rate
+
+Note that video_duration-audio_duration=3.8 ms for test_raw.mp4. Why? 
+That's exactly 76 audio samples at 20.0 kHz, or 0.11388... video frames
+
+This is not detectable, but still I would have expected this to be much closer
+
+Although apparently the audio and video don't have to be exactly the same length to be synced
+Using ffprobe, can see that these durations are correct:
+
+ffprobe.exe -show_entries stream=codec_type,duration,start_pts,start_time test_raw.mp4
+
+[STREAM]
+codec_type=video
+start_pts=1001
+start_time=0.033367
+duration=25.091767
+[/STREAM]
+[STREAM]
+codec_type=audio
+start_pts=0
+start_time=0.000000
+duration=25.087958
+[/STREAM]
